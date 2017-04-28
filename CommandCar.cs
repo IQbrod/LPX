@@ -72,7 +72,7 @@ namespace LIGHT
                 }
                 else
                 {
-                    InteractableVehicle veh = player.Player.movement.getVehicle();                    
+                    InteractableVehicle veh = player.Player.Movement.getVehicle();                    
                     switch (command[0].ToLower())
                     {
                         case "refuel":
@@ -422,6 +422,55 @@ namespace LIGHT
                             else
                             {
                                 UnturnedChat.Say(caller, LIGHT.Instance.Translate("car_list_all"));
+                            }
+                            break;
+                        case "steal":
+                            if (command.Length == 1)
+                            {
+                                UnturnedChat.Say(caller, LIGHT.Instance.Translate("car_steal_help"));
+                                return;
+                            }
+                            else
+                            {
+                                if (LIGHT.Instance.DatabaseCar.CheckCarExistInDB(command[1]))
+                                { /** La voiture existe **/
+                                    decimal[] stealVehPrice = { 100, 100,/**/100, 250, 500,/**/1000, 1500, 2000,/**/2500, 3000, 4000, 10000,/**/50000 };
+                                    decimal[] lLicencePrice = { 500, 750,/**/1000, 1500, 3500,/**/1250, 1750, 3750,/**/1500, 2000, 4000, 10000,/**/90000 };
+                                    string strVehID = LIGHT.Instance.DatabaseCar.GetCarID(command[1]);
+                                    int vehID = LIGHT.Instance.DatabaseCar.convertLicenceToInt(strVehID);
+                                    if (vehID == -1)
+                                    {
+                                        break;
+                                    }
+                                    /** Prix vol vehicule **/
+                                    decimal vehprice = stealVehPrice[vehID];
+                                    if (player.HasPermission("Car_Steal_"+strVehID) || player.HasPermission("Car_Steal_*"))
+                                    {
+                                        vehprice = 100; /** Prix pour forcer le vehicule avec autorisation **/
+                                    }
+                                    /** Prix licence **/
+                                    decimal licPrice = 0;
+                                    if (!player.HasPermission("Licence_" + strVehID) && LIGHT.Instance.DatabaseCar.CheckLicence(player.Id, strVehID))
+                                    {
+                                        licPrice = lLicencePrice[vehID];
+                                    }
+                                    decimal balance = Uconomy.Instance.Database.GetBalance(player.Id);
+                                    decimal price = vehprice + licPrice;
+                                    if (balance < price)
+                                    {
+                                        UnturnedChat.Say(caller, LIGHT.Instance.Translate("car_not_enough_currency", Uconomy.Instance.Configuration.Instance.MoneyName));
+                                        return;
+                                    }
+                                    /** Paiement du vol du vehicule **/
+                                    decimal bal = Uconomy.Instance.Database.IncreaseBalance(player.Id, (price * -1));
+                                    if (bal >= 0.0m)
+                                        UnturnedChat.Say(caller, LIGHT.Instance.Translate("new_balance_msg", new object[] { bal, Uconomy.Instance.Configuration.Instance.MoneyName }));
+                                    /** Unlocking du vehicule **/
+                                    string oldowner = LIGHT.Instance.DatabaseCar.GetOwnerName(command[1]);
+                                    LIGHT.Instance.DatabaseCar.RemoveOwnership(command[1]);
+                                    LIGHT.Instance.DatabaseCar.AddOwnership(command[1], player.Id, player.DisplayName);
+                                    Logger.Log(player.CharacterName + " a vole la voiture numero " + command[1] + " de categorie " + vehID + " appartenant a " + oldowner);
+                                }
                             }
                             break;
                         default:
